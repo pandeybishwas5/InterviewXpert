@@ -25,3 +25,4 @@ credentials
 *.sw?
 .env
 .venv/
+venv/
