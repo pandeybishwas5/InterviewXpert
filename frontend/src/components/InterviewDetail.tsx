@@ -1,0 +1,88 @@
+import { ArrowLeft, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
+interface Feedback {
+  question: string;
+  userAnswer: string;
+  feedback: string;
+  suggestedAnswer: string;
+  score: number;
+}
+
+interface InterviewDetailProps {
+  interviewName: string;
+  feedbacks: Feedback[];
+  onBack: () => void;
+}
+
+export const InterviewDetail = ({ interviewName, feedbacks, onBack }: InterviewDetailProps) => {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={onBack} size="icon">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">{interviewName}</h1>
+          <p className="text-muted-foreground">AI Analysis & Feedback</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {feedbacks.map((feedback, index) => (
+          <Card key={index} className="p-6 gradient-card">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                      Question {index + 1}
+                    </Badge>
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        feedback.score >= 8 
+                          ? "bg-success/10 text-success border-success/20" 
+                          : feedback.score >= 6
+                          ? "bg-warning/10 text-warning border-warning/20"
+                          : "bg-destructive/10 text-destructive border-destructive/20"
+                      }
+                    >
+                      Score: {feedback.score}/10
+                    </Badge>
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{feedback.question}</h3>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Your Answer</p>
+                  <p className="text-foreground">{feedback.userAnswer}</p>
+                </div>
+
+                <div className="p-4 rounded-xl gradient-primary text-primary-foreground">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4" />
+                    <p className="text-sm font-medium">AI Feedback</p>
+                  </div>
+                  <p>{feedback.feedback}</p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-success/10 border border-success/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <p className="text-sm font-medium text-success">Suggested Answer</p>
+                  </div>
+                  <p className="text-foreground">{feedback.suggestedAnswer}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
