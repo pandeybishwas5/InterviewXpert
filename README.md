@@ -23,7 +23,7 @@ Users can upload audio or video recordings of their interviews, which are transc
 
 | Layer     | Technology                                      |
 |-----------|-------------------------------------------------|
-| Frontend  | React + TypeScript + Vite                       |
+| Frontend  | React + TypeScript + TailwindCSS + Vite                       |
 | UI Library| Tailwind CSS + shadcn/ui                        |
 | Backend   | Django + Django REST Framework                  |
 | AI/ML     | Google Cloud Speech-to-Text + OpenAI GPT        |
