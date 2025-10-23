@@ -1,106 +1,111 @@
-import { useState } from 'react';
-import { FileUpload } from '@/components/FileUpload';
-import { InterviewCard, Interview, InterviewStatus } from '@/components/InterviewCard';
-import { InterviewDetail } from '@/components/InterviewDetail';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { Sparkles } from 'lucide-react';
-
-// Mock data for demonstration
-const mockInterviews: Interview[] = [
-  {
-    id: '1',
-    name: 'Software Engineer Interview - Google',
-    type: 'video',
-    status: 'completed',
-    uploadedAt: new Date('2024-01-15'),
-    duration: '45:30',
-  },
-  {
-    id: '2',
-    name: 'Product Manager Phone Screen',
-    type: 'audio',
-    status: 'completed',
-    uploadedAt: new Date('2024-01-18'),
-    duration: '32:15',
-  },
-  {
-    id: '3',
-    name: 'Technical Assessment - Amazon',
-    type: 'video',
-    status: 'analyzing',
-    uploadedAt: new Date('2024-01-20'),
-    duration: '52:00',
-  },
-];
-
-const mockFeedbacks = [
-  {
-    question: "Can you explain the difference between var, let, and const in JavaScript?",
-    userAnswer: "var is function scoped, let and const are block scoped. const cannot be reassigned.",
-    feedback: "Good explanation! You covered the key differences. Consider mentioning hoisting behavior and the temporal dead zone for let and const.",
-    suggestedAnswer: "var is function-scoped and hoisted with initialization. let and const are block-scoped and hoisted without initialization (temporal dead zone). const prevents reassignment but allows object mutation. var can be redeclared, while let and const cannot.",
-    score: 8,
-  },
-  {
-    question: "What is your experience with React hooks?",
-    userAnswer: "I've used useState and useEffect in my projects to manage state and side effects.",
-    feedback: "You mentioned the most common hooks. To strengthen your answer, discuss useCallback, useMemo for optimization, or custom hooks you've created.",
-    suggestedAnswer: "I have extensive experience with React hooks including useState for state management, useEffect for side effects, useCallback and useMemo for performance optimization, and useContext for state sharing. I've also created custom hooks to encapsulate reusable logic, such as useDebounce and useFetch for API calls.",
-    score: 6,
-  },
-  {
-    question: "Describe a challenging bug you fixed recently.",
-    userAnswer: "There was a memory leak in our application caused by not cleaning up event listeners.",
-    feedback: "Great start! Enhance your answer by explaining how you identified the issue, the steps you took to fix it, and what you learned.",
-    suggestedAnswer: "I discovered a memory leak in our React application where event listeners weren't being cleaned up. I used Chrome DevTools to profile memory usage and identified components not removing listeners on unmount. I fixed it by implementing proper cleanup in useEffect return functions and created a custom hook to ensure consistent cleanup across the codebase. This improved our app's performance by 40% in long sessions.",
-    score: 7,
-  },
-];
+import { useState, useEffect } from "react";
+import { FileUpload } from "@/components/FileUpload";
+import { InterviewCard, Interview, InterviewStatus } from "@/components/InterviewCard";
+import { InterviewDetail } from "@/components/InterviewDetail";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Sparkles, Loader2 } from "lucide-react";
+import * as api from "@/services/api";
 
 const Index = () => {
-  const [interviews, setInterviews] = useState<Interview[]>(mockInterviews);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
   const [selectedInterview, setSelectedInterview] = useState<string | null>(null);
 
-  const handleFileSelect = (file: File) => {
-    const newInterview: Interview = {
-      id: Date.now().toString(),
-      name: file.name,
-      type: file.type.startsWith('audio/') ? 'audio' : 'video',
-      status: 'uploaded',
-      uploadedAt: new Date(),
-    };
-    
-    setInterviews([newInterview, ...interviews]);
-    toast.success('File uploaded successfully!', {
-      description: 'AI analysis will begin shortly.',
-    });
+  useEffect(() => {
+    fetchInterviews();
+  }, []);
 
-    // Simulate analysis
-    setTimeout(() => {
-      setInterviews(prev => 
-        prev.map(i => i.id === newInterview.id ? { ...i, status: 'analyzing' as InterviewStatus } : i)
-      );
-    }, 2000);
+  const fetchInterviews = async () => {
+    try {
+      const res = await api.getInterviews();
+      const formatted = res.data.map((i: any) => ({
+        id: i.id.toString(),
+        name: i.job_title,
+        type: i.extracted_audio ? "audio" : "video",
+        status: i.transcript ? "completed" : "uploaded",
+        uploadedAt: new Date(i.created_at),
+      }));
+      setInterviews(formatted);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to fetch interviews");
+    }
+  };
 
-    setTimeout(() => {
-      setInterviews(prev => 
-        prev.map(i => i.id === newInterview.id ? { ...i, status: 'completed' as InterviewStatus } : i)
+  const handleFileSelect = async (file: File, jobTitle: string) => {
+    if (!jobTitle.trim()) {
+      toast.error("Please enter a job title before uploading.");
+      return;
+    }
+
+    try {
+      const createRes = await api.createInterview(jobTitle);
+      const interviewId = createRes.data.id;
+
+      // Optimistic UI
+      setInterviews((prev) => [
+        {
+          id: interviewId,
+          name: jobTitle,
+          type: file.type.startsWith("audio/") ? "audio" : "video",
+          status: "uploaded",
+          uploadedAt: new Date(),
+        },
+        ...prev,
+      ]);
+
+      toast.success("File added! Uploading...");
+
+      // Upload file
+      await api.uploadFile(interviewId, file);
+      toast.success("File uploaded successfully!");
+
+      // Set status to analyzing
+      setInterviews((prev) =>
+        prev.map((i) =>
+          i.id === interviewId ? { ...i, status: "analyzing" as InterviewStatus } : i
+        )
       );
-      toast.success('Analysis complete!', {
-        description: 'Your interview feedback is ready.',
-      });
-    }, 5000);
+
+      // Transcribe
+      await api.transcribeAudio(interviewId);
+      toast.success("Transcription completed!");
+
+      // Set status to completed
+      setInterviews((prev) =>
+        prev.map((i) =>
+          i.id === interviewId ? { ...i, status: "completed" as InterviewStatus } : i
+        )
+      );
+
+      setSelectedInterview(interviewId);
+
+      fetchInterviews();
+    } catch (err) {
+      console.error(err);
+      toast.error("Error processing interview file");
+    }
+  };
+
+  const handleDeleteInterview = async (id: string) => {
+    try {
+      await api.deleteInterview(id);
+      setInterviews((prev) => prev.filter((i) => i.id !== id));
+      toast.success("Interview deleted successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete interview");
+    }
   };
 
   if (selectedInterview) {
-    const interview = interviews.find(i => i.id === selectedInterview);
+    const interview = interviews.find((i) => i.id === selectedInterview);
     return (
       <div className="min-h-screen gradient-subtle">
         <div className="container mx-auto px-4 py-8">
           <InterviewDetail
-            interviewName={interview?.name || ''}
-            feedbacks={mockFeedbacks}
+            interviewId={selectedInterview}
+            interviewName={String(interview?.name || "")}
             onBack={() => setSelectedInterview(null)}
           />
         </div>
@@ -111,7 +116,6 @@ const Index = () => {
   return (
     <div className="min-h-screen gradient-subtle">
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Header */}
         <div className="text-center space-y-4 py-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary border border-primary/20 mb-4">
             <Sparkles className="w-4 h-4" />
@@ -125,12 +129,10 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Upload Section */}
         <div className="max-w-3xl mx-auto">
           <FileUpload onFileSelect={handleFileSelect} />
         </div>
 
-        {/* Interviews List */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Your Interviews</h2>
@@ -138,13 +140,26 @@ const Index = () => {
               View All
             </Button>
           </div>
-          
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {interviews.map((interview) => (
               <InterviewCard
                 key={interview.id}
-                interview={interview}
-                onClick={() => interview.status === 'completed' && setSelectedInterview(interview.id)}
+                interview={{
+                  ...interview,
+                  name: interview.status === "analyzing" ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {interview.name}
+                    </span>
+                  ) : (
+                    interview.name
+                  ),
+                }}
+                onClick={() =>
+                  interview.status === "completed" && setSelectedInterview(interview.id)
+                }
+                onDelete={handleDeleteInterview}
               />
             ))}
           </div>

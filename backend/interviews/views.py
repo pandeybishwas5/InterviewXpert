@@ -197,30 +197,42 @@ def get_feedback(request, pk):
 
     try:
         prompt = f"""
-You are an expert interview coach.
-The candidate applied for: {interview.job_title}
-Here is the interview transcript:
+You are an AI interviewer analyzing a transcript.
+The candidate applied for the role: {interview.job_title}.
+Return the analysis **strictly in JSON array format** (no markdown, no code fences).
+Each item should include:
+question, userAnswer, feedback, suggestedAnswer, score (1-10).
 
+Below is the full transcript of the interview:
 {interview.transcript}
 
-Provide:
-1. Feedback on candidate responses.
-2. Improved answers for questions the candidate missed or answered poorly.
-Format the response clearly with bullets or paragraphs.
 """
 
         response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",  # Use GPT-4o if available for better structure
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=1000,
+            max_tokens=2000,
+            temperature=0.4,
         )
 
-        feedback_text = response.choices[0].message.content.strip()
-        return Response({"feedback": feedback_text})
+        raw_feedback = response.choices[0].message.content.strip()
+
+        import json
+        try:
+            structured_feedback = json.loads(raw_feedback)
+        except json.JSONDecodeError:
+            if "```json" in raw_feedback:
+                raw_feedback = raw_feedback.split("```json")[1].split("```")[0]
+                structured_feedback = json.loads(raw_feedback)
+            else:
+                structured_feedback = [{"question": "General Feedback", "userAnswer": "", "feedback": raw_feedback, "suggestedAnswer": "", "score": 0}]
+
+        return Response({"feedback": structured_feedback})
 
     except Exception as e:
         traceback.print_exc()
         return Response({"error": str(e)}, status=500)
+
 
 
 # -----------------------------

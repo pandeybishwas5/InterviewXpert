@@ -20,14 +20,14 @@ export const getInterviews = async () => {
 // -----------------------------
 // Delete Interview
 // -----------------------------
-export const deleteInterview = async (id: number) => {
+export const deleteInterview = async (id: string) => {
   return axios.delete(`${API_BASE}${id}/`);
 };
 
 // -----------------------------
 // Upload File
 // -----------------------------
-export const uploadFile = async (id: number, file: File, onUploadProgress?: (progress: number) => void) => {
+export const uploadFile = async (id: string, file: File, onUploadProgress?: (progress: number) => void) => {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -45,13 +45,13 @@ export const uploadFile = async (id: number, file: File, onUploadProgress?: (pro
 // -----------------------------
 // Transcribe Audio
 // -----------------------------
-export const transcribeAudio = async (id: number) => {
+export const transcribeAudio = async (id: string) => {
   return axios.post(`${API_BASE}${id}/transcribe/`);
 };
 
 // -----------------------------
 // Get AI Feedback
 // -----------------------------
-export const getFeedback = async (id: number) => {
+export const getFeedback = async (id: string) => {
   return axios.post(`${API_BASE}${id}/feedback/`);
 };
