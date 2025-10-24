@@ -7,7 +7,8 @@ class Interview(models.Model):
     uploaded_file = models.FileField(upload_to="uploads/", null=True, blank=True)
     extracted_audio = models.FileField(upload_to="uploads/", null=True, blank=True)
     transcript = models.TextField(null=True, blank=True)
-
+    duration = models.FloatField(null=True, blank=True)
+    status = models.CharField(max_length=50, default="uploaded") 
 
 def __str__(self):
     return f"Interview #{self.id} - {self.job_title}"

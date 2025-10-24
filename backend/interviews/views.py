@@ -12,6 +12,7 @@ from rest_framework import status
 from pydub import AudioSegment
 import openai
 from google.cloud import speech
+from google.cloud import storage
 from google.oauth2 import service_account
 
 from .models import Interview
@@ -52,14 +53,6 @@ def create_interview(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["DELETE"])
-def delete_interview(request, pk):
-    try:
-        interview = Interview.objects.get(pk=pk)
-        interview.delete()
-        return Response(status=204)
-    except Interview.DoesNotExist:
-        return Response({"error": "Not found"}, status=404)
 
 # -----------------------------
 # Upload File
@@ -108,6 +101,8 @@ def upload_file(request, pk):
         # --- Save to GCS ---
         gcs_path = f"interviews/{pk}/interview.wav"
         interview.extracted_audio.save(gcs_path, ContentFile(final_audio_io.getvalue()))
+        interview.status = "analyzing"
+        interview.duration = audio_segment.duration_seconds  # duration in seconds
         interview.save()
 
         return Response({"message": "File uploaded and processed successfully!"})
@@ -115,6 +110,53 @@ def upload_file(request, pk):
     except Exception as e:
         traceback.print_exc()
         return Response({"error": str(e)}, status=500)
+    
+
+
+# -----------------------------
+# Delete File
+# -----------------------------
+
+@api_view(["DELETE"])
+def delete_interview(request, pk):
+    try:
+        interview = Interview.objects.get(pk=pk)
+
+        # --- Delete audio file ---
+        if interview.extracted_audio and interview.extracted_audio.name:
+            try:
+                storage_backend = interview.extracted_audio.storage
+                storage_backend.delete(interview.extracted_audio.name)
+                print(f"✅ Deleted file from GCS: {interview.extracted_audio.name}")
+            except Exception as e:
+                print(f"⚠️ Error deleting individual file: {e}")
+
+        # --- Delete folder/prefix ---
+        try:
+            client = storage.Client.from_service_account_json(settings.GCS_CREDENTIALS_PATH)
+            bucket = client.bucket(settings.GS_BUCKET_NAME)
+            prefix = f"/uploads/interviews/{pk}/"
+
+            blobs = bucket.list_blobs(prefix=prefix)
+            deleted_any = False
+            for blob in blobs:
+                blob.delete()
+                deleted_any = True
+
+            if deleted_any:
+                print(f"✅ Deleted folder prefix: {prefix}")
+            else:
+                print(f"ℹ️ No extra files under prefix {prefix}")
+        except Exception as e:
+            print(f"⚠️ Error deleting folder prefix: {e}")
+
+        # --- Delete the interview record ---
+        interview.delete()
+
+        return Response(status=204)
+
+    except Interview.DoesNotExist:
+        return Response({"error": "Not found"}, status=404)
 
 
 # -----------------------------
@@ -176,6 +218,7 @@ def transcribe_audio(request, pk):
 
         # Save transcript
         interview.transcript = "\n".join([f"{seg['speaker']}: {seg['text']}" for seg in transcript_data])
+        interview.status = "completed"
         interview.save()
 
         return Response({"transcript": transcript_data})

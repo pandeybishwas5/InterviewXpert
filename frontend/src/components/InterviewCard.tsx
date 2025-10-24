@@ -12,7 +12,7 @@ export interface Interview {
   type: 'audio' | 'video';
   status: InterviewStatus;
   uploadedAt?: Date | string;
-  duration?: string;
+  duration?: number;
 }
 
 interface InterviewCardProps {
@@ -92,7 +92,7 @@ export const InterviewCard = ({ interview, onClick, onDelete }: InterviewCardPro
             <h3 className="font-semibold text-lg truncate leading-tight">{interview.name}</h3>
             <p className="text-sm text-muted-foreground">
               {formattedDate}
-              {interview.duration && ` • ${interview.duration}`}
+              {interview.duration && ` • ${Math.floor(interview.duration / 60)}m ${Math.floor(interview.duration % 60)}s`}
             </p>
           </div>
         </div>

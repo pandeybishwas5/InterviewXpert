@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,8 +45,14 @@ export const InterviewDetail = ({ interviewId, interviewName, onBack }: Intervie
   }, [interviewId]);
 
   if (loading) {
-    return <p className="text-center text-muted-foreground">Loading feedback...</p>;
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground">
+        <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
+        <p className="text-sm">Analyzing and generating feedback...</p>
+      </div>
+    );
   }
+
 
   return (
     <div className="space-y-6">

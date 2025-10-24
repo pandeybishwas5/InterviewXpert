@@ -10,6 +10,7 @@ import * as api from "@/services/api";
 const Index = () => {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [selectedInterview, setSelectedInterview] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState<boolean>(false);
 
   useEffect(() => {
     fetchInterviews();
@@ -22,7 +23,8 @@ const Index = () => {
         id: i.id.toString(),
         name: i.job_title,
         type: i.extracted_audio ? "audio" : "video",
-        status: i.transcript ? "completed" : "uploaded",
+        status: i.status as InterviewStatus,
+        duration: i.duration,
         uploadedAt: new Date(i.created_at),
       }));
       setInterviews(formatted);
@@ -135,19 +137,24 @@ const Index = () => {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Your Interviews</h2>
-            <Button variant="outline" size="sm">
-              View All
-            </Button>
-          </div>
+  <h2 className="text-2xl font-bold">Your Interviews</h2>
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => setShowAll((prev) => !prev)}
+  >
+    {showAll ? "View Less" : "View All"}
+  </Button>
+</div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {interviews.map((interview) => (
-              <InterviewCard
-                key={interview.id}
-                interview={{
-                  ...interview,
-                  name: interview.status === "analyzing" ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {(showAll ? interviews : interviews.slice(0, 3)).map((interview) => (
+            <InterviewCard
+              key={interview.id}
+              interview={{
+                ...interview,
+                name:
+                  interview.status === "analyzing" ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {interview.name}
@@ -155,14 +162,15 @@ const Index = () => {
                   ) : (
                     interview.name
                   ),
-                }}
-                onClick={() =>
-                  interview.status === "completed" && setSelectedInterview(interview.id)
-                }
-                onDelete={handleDeleteInterview}
-              />
-            ))}
-          </div>
+              }}
+              onClick={() =>
+                interview.status === "completed" && setSelectedInterview(interview.id)
+              }
+              onDelete={handleDeleteInterview}
+            />
+          ))}
+        </div>
+
         </div>
       </div>
     </div>
